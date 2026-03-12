@@ -12,9 +12,17 @@
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@notionhq/client": "^5.12.0",
     "dotenv": "^17.3.1",
     "fs-extra": "^11.3.4",
+    "node-cron": "^4.2.1",
+    "rss-parser": "^3.13.0",
     "ts-node": "^10.9.2",
+    "twilio": "^5.13.0",
     "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.21.0"
   }
 }
