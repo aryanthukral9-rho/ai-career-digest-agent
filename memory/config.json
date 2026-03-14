@@ -1,0 +1,5 @@
+{
+  "digestTime": "0 8 * * *",
+  "maxItemsPerRun": 20,
+  "minScore": 5
+}

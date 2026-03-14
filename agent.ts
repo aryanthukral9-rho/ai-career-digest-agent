@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import dotenv from "dotenv";
 import readline from "readline";
+import { addTask, listTasks } from "./tasks";
+
 
 dotenv.config();
 
