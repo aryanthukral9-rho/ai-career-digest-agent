@@ -36,7 +36,7 @@ export const FEEDS: Feed[] = [
   {
     name: "In Depth",
     author: "First Round Capital",
-    url: "https://feeds.simplecast.com/Gb7vhP5p",
+    url: "https://feeds.simplecast.com/Gb7vhP5p", // TODO: 404 — verify correct simplecast URL
     type: "podcast",
     emoji: "🎙",
     tags: ["VC", "Startups"],
@@ -126,7 +126,7 @@ export const FEEDS: Feed[] = [
   {
     name: "First Round Review",
     author: "First Round Capital",
-    url: "https://review.firstround.com/feed",
+    url: "https://review.firstround.com/feed", // TODO: 404 — blog may not expose /feed; check if they have RSS
     type: "newsletter",
     emoji: "📝",
     tags: ["VC", "Startups"],
@@ -241,7 +241,7 @@ export const FEEDS: Feed[] = [
   {
     name: "George Mack",
     author: "George Mack",
-    url: "https://www.george-mack.com/feed",
+    url: "https://www.george-mack.com/feed", // TODO: 404 — verify RSS path (try /rss or check if on Beehiiv/Substack)
     type: "newsletter",
     emoji: "📝",
     tags: ["Growth"],

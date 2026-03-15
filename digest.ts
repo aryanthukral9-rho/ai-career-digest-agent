@@ -12,7 +12,17 @@ import { logToNotion } from "./notion.js";
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const parser = new Parser();
+
+const parser = new Parser({
+  headers: {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    Accept:
+      "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+  },
+  timeout: 10000,
+});
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 interface RSSItem {
@@ -35,29 +45,38 @@ function stripHtml(html: string): string {
 }
 
 export async function fetchFeed(feed: Feed): Promise<RSSItem[]> {
-  try {
-    const parsed = await parser.parseURL(feed.url);
-    const sorted = (parsed.items ?? []).sort((a, b) => {
-      const ta = a.pubDate ? new Date(a.pubDate).getTime() : 0;
-      const tb = b.pubDate ? new Date(b.pubDate).getTime() : 0;
-      return tb - ta;
-    });
+  const MAX_RETRIES = 2;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const parsed = await parser.parseURL(feed.url);
+      const sorted = (parsed.items ?? []).sort((a, b) => {
+        const ta = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+        const tb = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+        return tb - ta;
+      });
 
-    return sorted.slice(0, 15).map((item) => {
-      const raw = item.contentSnippet ?? item.content ?? item.summary ?? "";
-      const content = stripHtml(raw).slice(0, 800);
-      return {
-        id: item.guid ?? item.link ?? item.title ?? "",
-        title: item.title ?? "(untitled)",
-        url: item.link ?? feed.url,
-        content,
-        feedRef: feed,
-      };
-    });
-  } catch (err) {
-    console.error(`[Feed] Failed to fetch "${feed.name}":`, (err as Error).message);
-    return [];
+      return sorted.slice(0, 15).map((item) => {
+        const raw = item.contentSnippet ?? item.content ?? item.summary ?? "";
+        const content = stripHtml(raw).slice(0, 800);
+        return {
+          id: item.guid ?? item.link ?? item.title ?? "",
+          title: item.title ?? "(untitled)",
+          url: item.link ?? feed.url,
+          content,
+          feedRef: feed,
+        };
+      });
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (attempt < MAX_RETRIES) {
+        console.warn(`[Feed] "${feed.name}" failed (attempt ${attempt + 1}) — retrying in 2s...`);
+        await new Promise((r) => setTimeout(r, 2000));
+      } else {
+        console.error(`[Feed] Failed to fetch "${feed.name}":`, msg);
+      }
+    }
   }
+  return [];
 }
 
 async function analyzeWithClaude(item: RSSItem, feed: Feed): Promise<ClaudeAnalysis> {
@@ -126,10 +145,17 @@ export async function runDigest(): Promise<void> {
   console.log("[Digest] Starting run...");
   const [state, config] = await Promise.all([loadState(), loadConfig()]);
 
-  // 1. Fetch all feeds in parallel
-  const allItems = (
-    await Promise.all(FEEDS.map((feed) => fetchFeed(feed)))
-  ).flat();
+  // 1. Fetch feeds in batches of 8 to avoid server-side rate limiting
+  const BATCH_SIZE = 8;
+  const allItems: RSSItem[] = [];
+  for (let i = 0; i < FEEDS.length; i += BATCH_SIZE) {
+    const batch = FEEDS.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(batch.map((feed) => fetchFeed(feed)));
+    allItems.push(...batchResults.flat());
+    if (i + BATCH_SIZE < FEEDS.length) {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
 
   // 2. Filter unseen — checks both guid and title+url hash
   const newItems = allItems.filter((item) =>
